@@ -1,8 +1,1 @@
-(function(window){
-
-
-
-
-
-
-})(window);
+module.exports = require('./src/promise');
