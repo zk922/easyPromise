@@ -1,0 +1,25 @@
+{
+  "name": "easypromise",
+  "version": "1.0.0",
+  "description": "an easy implement for Promise",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zk922/easyPromise.git"
+  },
+  "keywords": [
+    "promise"
+  ],
+  "author": "zk",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zk922/easyPromise/issues"
+  },
+  "homepage": "https://github.com/zk922/easyPromise#readme",
+  "devDependencies": {
+    "typescript": "^2.9.2"
+  }
+}
