@@ -1,1 +1,7 @@
-/.idea
+dist
+build
+
+.git
+.idea
+
+node_modules
