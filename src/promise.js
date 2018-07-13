@@ -12,8 +12,10 @@ let Promise = (function(){
 
   /**
    * 更改Promise状态，并通知下一个promise的方法
+   * 通过call方法调用，改变this指向promise
    * **/
   function resolve(value){
+    if(this.status !== STATUS[0]) return;
     this.status = STATUS[1];
     this.value = value;
 
@@ -22,6 +24,7 @@ let Promise = (function(){
     }
   }
   function reject(reason){
+    if(this.status !== STATUS[0]) return;
     this.status = STATUS[2];
     this.reason = reason;
 
@@ -37,7 +40,7 @@ let Promise = (function(){
 
   /**
    * 下面根据规范进行onFulfill和onReject的判断
-   * 1.如果 onFulfilled 或者 onRejected 返回一个值 ，promise2变为onfulfilled。
+   * 1.如果 onFulfilled 或者 onRejected 返回一个值 ，根据值进行  下面处理x的流程处理。
    * 2.如果 onFulfilled 或者 onRejected 抛出一个异常 e ，则 promise2 必须拒绝执行，并返回拒因 e
    * 3.如果 onFulfilled 不是函数且 promise1 成功执行， promise2 必须成功执行并返回相同的值
    * 4.如果 onRejected 不是函数且 promise1 拒绝执行， promise2 必须拒绝执行并返回相同的据因
@@ -56,8 +59,9 @@ let Promise = (function(){
       }
       catch (e) {
         reject.call(promise2, e);
+        return;
       }
-      resolve.call(promise2, result);
+      _resolveX(result,promise2);
     }
   }
   function onRejectRegister(onReject, promise2){
@@ -73,12 +77,74 @@ let Promise = (function(){
       }
       catch (e) {
         reject.call(promise2, e);
+        return;
       }
-      resolve.call(promise2, result);
+      _resolveX(result,promise2);
     }
   }
 
-
+  /**
+   * 处理x返回值的流程
+   * @params result  onfulfill或者onreject的返回值x
+   * @params promise2
+   * **/
+  function _resolveX(result, promise2){
+    if(result === promise2){
+      reject.call(promise2, new Error(' TypeError'));
+      return;
+    }
+    if(result instanceof Promise){
+      switch (result.status){
+        case STATUS[0]:
+          result.then(
+            function (value) {
+              resolve.call(promise2, value);
+            },
+            function (reason) {
+              reject.call(promise2, reason);
+            }
+          );
+          break;
+        case STATUS[1]:
+          resolve.call(promise2, result.value);
+          break;
+        case STATUS[2]:
+          reject.call(promise2, result.reason);
+          break;
+      }
+      return;
+    }
+    let then;
+    try{
+      then = result.then;
+    }
+    catch (e) {
+      reject.call(promise2, e);
+      return;
+    }
+    if(isThenAble(result)){
+      let triggered = false;
+      try{
+        then.call(result,
+          function resolvePromise(y) {
+            if(triggered) return;
+            triggered = true;
+            _resolveX(y, promise2);
+          },
+          function rejectPromise(r) {
+            if(triggered) return;
+            triggered = true;
+            reject.call(promise2, r);
+          }
+        )
+      }
+      catch (e) {
+        triggered && (reject.call(promise2, e));
+      }
+      return;
+    }
+    resolve.call(promise2, result);
+  }
 
   /**
    * Promise类的主函数
@@ -102,31 +168,21 @@ let Promise = (function(){
   }
   Promise.prototype.then = function(onFulfilled, onRejected){
     let promise2 = new Promise();
-    // onFulfilled instanceof Function && promise2.onFulfilled.push(onFulfilled.bind(undefined));
-    // onRejected instanceof Function && promise2.onRejected .push(onRejected.bind(undefined));
-
-    //TODO 需要封装下fulfill 和reject函数
-    //TODO 根据fullfill和reject返回值更改promise2状态，并通知nextPromise，这里需要详细看文档跟着文档走
+    promise2.onFulfilled.push(onFulfillRegister(onFulfilled, promise2));
+    promise2.onRejected .push(onRejectRegister(onRejected,promise2));
     /**
      * @link http://www.ituring.com.cn/article/66566
      * **/
-
     this.nextPromise = promise2;
 
-
-
-    //TODO 如果前一个promise已经执行完成，注册then时候，不进行判断的话，后面的pormise是不会调用的。所以注册时候需要判断下。
-    //TODO 有人说用setTimeout,但是后面动态调用then的话也不会执行。所以最好是在注册时候就进行一次判断。
     if(this.status === STATUS[1]){
-
+      promise2.onFulfilled[0](this.value);
     }
     else if(this.status === STATUS[2]){
-
+      promise2.onRejected[0](this.reason);
     }
-
     return promise2;
   };
-
   return Promise;
 })();
 
