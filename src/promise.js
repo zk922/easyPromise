@@ -1,9 +1,9 @@
-const status = require('status');
+const status = require('./status');
 
 const {
   isThenAble,
   changeAble
-} = require('tool');
+} = require('./tool');
 
 let Promise = (function(){
 
