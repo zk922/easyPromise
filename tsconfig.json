@@ -6,7 +6,9 @@
     "experimentalDecorators": true,
     "lib": [
       "dom",
-      "es2015"
+      "es5",
+      "es6",
+      "es7"
     ],
     "module": "commonjs",
     "moduleResolution": "node",
@@ -14,10 +16,15 @@
     "allowJs": true,
     "target": "es5",
     "typeRoots": [
-      "../node_modules/@types"
+      "./node_modules/@types"
+    ],
+    "types": [
+      // add node as an option
+      "node"
     ]
   },
   "include": [
+    "*.ts",
     "src/**/*.ts"
   ],
   "exclude": [
@@ -25,8 +32,5 @@
     "src/**/*.spec.ts",
     "src/**/__tests__/*.ts"
   ],
-  "compileOnSave": false,
-  "atom": {
-    "rewriteTsconfig": false
-  }
+  "compileOnSave": false
 }
