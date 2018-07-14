@@ -184,4 +184,7 @@ require('./returnPromise');
 require('./catch');
 //实现finally方法
 require('./finally');
-
+//实现Promise.race方法
+require('./race');
+//实现Promise.all方法
+require('./all');
