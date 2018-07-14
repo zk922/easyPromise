@@ -48,7 +48,6 @@ let Promise = (function(){
   function onFulfillRegister(onFulfill, promise2){
     return function (value) {
       /** @Param value 上一个promise成功执行后，传递给下个promise2的value**/
-      //TODO promise 解决过程
       if(!(onFulfill instanceof Function)){
         resolve.call(promise2, value);
         return;
@@ -164,10 +163,11 @@ let Promise = (function(){
     catch (e) {
       reject.call(this, e);
     }
-
   }
   Promise.prototype.then = function(onFulfilled, onRejected){
     let promise2 = new Promise();
+    //用户输入的两个回调函数只是处理数据，promise的实现中，需要在数据处理后，进行promise状态改变并通知下一个
+    //promise.所以，实际注册的promise需要进行封装
     promise2.onFulfilled.push(onFulfillRegister(onFulfilled, promise2));
     promise2.onRejected .push(onRejectRegister(onRejected,promise2));
     /**
@@ -175,6 +175,8 @@ let Promise = (function(){
      * **/
     this.nextPromise = promise2;
 
+
+    //如果上一个promise已经结束，then生成的promise需要直接去触发注册好的回调
     if(this.status === STATUS[1]){
       promise2.onFulfilled[0](this.value);
     }
