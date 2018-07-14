@@ -14,7 +14,7 @@
     "promise"
   ],
   "author": "zk",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/zk922/easyPromise/issues"
   },
@@ -25,6 +25,10 @@
     "karma": "^2.0.4",
     "karma-chrome-launcher": "^2.2.0",
     "karma-jasmine": "^1.1.2",
-    "typescript": "^2.9.2"
+    "typescript": "^2.6.2"
+  },
+  "dependencies": {
+    "webpack": "4.16.0",
+    "webpack-cli": "3.0.8"
   }
 }
