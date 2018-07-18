@@ -10,8 +10,10 @@ function resolve(value){
   this.status = STATUS[1];
   this.value = value;
 
-  if(this.nextPromise instanceof Promise && this.nextPromise.onFulfilled[0] instanceof Function){
-    this.nextPromise.onFulfilled[0](this.value);
+  if(this.nextPromises.length>0){
+    this.nextPromises.forEach(v=>{
+      v.onFulfilled[0] instanceof Function && v.onFulfilled[0](this.value);
+    });
   }
 }
 function reject(reason){
@@ -19,8 +21,10 @@ function reject(reason){
   this.status = STATUS[2];
   this.reason = reason;
 
-  if(this.nextPromise instanceof Promise && this.nextPromise.onRejected[0] instanceof Function){
-    this.nextPromise.onRejected[0](this.reason);
+  if(this.nextPromises.length>0){
+    this.nextPromises.forEach(v=>{
+      v.onRejected[0] instanceof Function && v.onRejected[0](this.reason);
+    });
   }
 }
 /**
@@ -39,37 +43,43 @@ function reject(reason){
 function onFulfillRegister(onFulfill, promise2){
   return function (value) {
     /** @Param value 上一个promise成功执行后，传递给下个promise2的value**/
-    if(!(onFulfill instanceof Function)){
-      resolve.call(promise2, value);
-      return;
-    }
-    let result;
-    try {
-      result = onFulfill.call(undefined, value);
-    }
-    catch (e) {
-      reject.call(promise2, e);
-      return;
-    }
-    _resolveX(result,promise2);
+    setTimeout(()=>{
+      if(!(onFulfill instanceof Function)){
+        resolve.call(promise2, value);
+        return;
+      }
+      let result;
+
+      try {
+        result = onFulfill.call(undefined, value);
+      }
+      catch (e) {
+        reject.call(promise2, e);
+        return;
+      }
+      _resolveX(result,promise2);
+    },0);
   }
 }
 function onRejectRegister(onReject, promise2){
   return function (reason) {
     /** @Param reason 上一个promise成功失败后，传递给下个promise2的reason**/
-    if(!(onReject instanceof Function)){
-      reject.call(promise2, reason);
-      return;
-    }
-    let result;
-    try {
-      result = onReject.call(undefined, reason);
-    }
-    catch (e) {
-      reject.call(promise2, e);
-      return;
-    }
-    _resolveX(result,promise2);
+    setTimeout(()=>{
+      if(!(onReject instanceof Function)){
+        reject.call(promise2, reason);
+        return;
+      }
+      let result;
+
+      try {
+        result = onReject.call(undefined, reason);
+      }
+      catch (e) {
+        reject.call(promise2, e);
+        return;
+      }
+      _resolveX(result,promise2);
+    },0);
   }
 }
 
@@ -97,15 +107,15 @@ function _resolveX(result, promise2){
     }
     return;
   }
-  let then;
-  try{
-    then = result.then;
-  }
-  catch (e) {
-    reject.call(promise2, e);
-    return;
-  }
   if(isThenAble(result)){
+    let then;
+    try{
+      then = result.then;
+    }
+    catch (e) {
+      reject.call(promise2, e);
+      return;
+    }
     let triggered = false;
     try{
       then.call(result,
@@ -139,7 +149,7 @@ function Promise(fn) {
   this.value = undefined;
   this.reason = undefined;
 
-  this.nextPromise = undefined;
+  this.nextPromises = [];
   this.onFulfilled = [];
   this.onRejected = [];
 
@@ -162,7 +172,7 @@ Promise.prototype.then = function(onFulfilled, onRejected){
   /**
    * @link http://www.ituring.com.cn/article/66566
    * **/
-  this.nextPromise = promise2;
+  this.nextPromises.push(promise2);
   //如果上一个promise已经结束，then生成的promise需要直接去触发注册好的回调
   if(this.status === STATUS[1]){
     promise2.onFulfilled[0](this.value);
