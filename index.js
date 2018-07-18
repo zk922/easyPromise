@@ -1,1 +1,1 @@
-const Promise = module.exports = require('./src/promise');
+module.exports = require('./src/promise');
