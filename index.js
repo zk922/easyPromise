@@ -1,1 +1,1 @@
-module.exports = require('./src/promise');
+module.exports = require('./lib/promise');

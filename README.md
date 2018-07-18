@@ -1,2 +1,2 @@
 # easyPromise
-an easy implement for Promise
+简单实现的一个Promise
