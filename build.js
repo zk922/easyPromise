@@ -19,8 +19,8 @@ if(fs.existsSync('lib')){
 const binDir = path.resolve(__dirname, 'node_modules/.bin/');
 console.log(`binDir:${binDir}`);
 
-cp.execSync(`${binDir}/babel src --out-dir lib/src --ignore forBrowser.js`);
-cp.execSync(`${binDir}/babel index.js --out-dir lib`);
+cp.execSync(`${binDir}/babel src --out-dir dist/easyPromise/src --ignore forBrowser.js`);
+cp.execSync(`${binDir}/babel index.js --out-dir dist/easyPromise`);
 console.log('babel finished');
 
 //读取package.json
@@ -28,7 +28,7 @@ let packString = fs.readFileSync('package.json');
 let pack = JSON.parse(packString);
 delete pack.devDependencies;
 delete pack.scripts;
-fs.appendFileSync('./lib/package.json', JSON.stringify(pack));
+fs.appendFileSync('./dist/easyPromise/package.json', JSON.stringify(pack));
 console.log('copy package.json');
 
 cp.execSync(`${binDir}/webpack`,{env:{ BUILD_ENV: 'development'}});
@@ -39,7 +39,6 @@ cp.execSync(`${binDir}/webpack`,{env:{BUILD_ENV: 'production'}});
 
 console.log('easyPromise.min.js finished');
 
-fs.appendFileSync('./dist/README.md', '供浏览器标签引用的包');
-fs.appendFileSync('./lib/README.md', '供npm安装的包');
+fs.appendFileSync('./dist/README.md', '两个js文件可以供浏览器标签引用，easyPromise文件夹可以当模块引用');
 
 console.log('build finished');
