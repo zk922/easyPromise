@@ -6,7 +6,7 @@ Promise.resolve = function (v) {
   })
 };
 Promise.reject = function (r) {
-  return new Promise(function (resolve,reject) {
+  return new Promise(function (resolve, reject) {
     reject(r);
   })
 };

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const cp = require('child_process');
 const rimraf = require('rimraf');
+const path = require('path');
 //打包脚本
 //1.转为可以导入的es5代码
 //2.打包出easyPromise.js
@@ -14,22 +15,27 @@ if(fs.existsSync('lib')){
   console.log('lib removed');
 }
 
-cp.execSync('npx babel src --out-dir lib/src --ignore forBrowser.js');
-cp.execSync('npx babel index.js --out-dir lib');
+//可执行文件目录
+const binDir = path.resolve(__dirname, 'node_modules/.bin/');
+console.log(`binDir:${binDir}`);
+
+cp.execSync(`${binDir}/babel src --out-dir lib/src --ignore forBrowser.js`);
+cp.execSync(`${binDir}/babel index.js --out-dir lib`);
 console.log('babel finished');
 
 //读取package.json
 let packString = fs.readFileSync('package.json');
 let pack = JSON.parse(packString);
 delete pack.devDependencies;
+delete pack.scripts;
 fs.appendFileSync('./lib/package.json', JSON.stringify(pack));
 console.log('copy package.json');
 
-cp.execSync('npx webpack',{env:{ BUILD_ENV: 'development'}});
+cp.execSync(`${binDir}/webpack`,{env:{ BUILD_ENV: 'development'}});
 
 console.log('easyPromise.js finished');
 
-cp.execSync('npx webpack',{env:{BUILD_ENV: 'production'}});
+cp.execSync(`${binDir}/webpack`,{env:{BUILD_ENV: 'production'}});
 
 console.log('easyPromise.min.js finished');
 

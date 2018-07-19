@@ -1,4 +1,3 @@
-const {isThenAble} = require('./tool');
 const STATUS = require('./status');
 
 /**
@@ -89,53 +88,72 @@ function onRejectRegister(onReject, promise2){
  * @params promise2
  * **/
 function _resolveX(result, promise2){
+  /** 1.If promise and x refer to the same object, reject promise with a TypeError as the reason. **/
   if(result === promise2){
-    reject.call(promise2, new Error(' TypeError'));
+    reject.call(promise2, new TypeError('Chaining cycle detected for promise'));
     return;
   }
+  /** 2.If x is a promise, adopt its state **/
   if(result instanceof Promise){
     switch (result.status){
       case STATUS[0]:
-        result.then(resolve.bind(promise2, value), reject.bind(promise2, reason));
+        /** 2.1 If x is pending, promise must remain pending until x is fulfilled or rejected. **/
+        result.then(resolve.bind(promise2), reject.bind(promise2));
         break;
       case STATUS[1]:
+        /** 2.2 If/when x is fulfilled, fulfill promise with the same value. **/
         resolve.call(promise2, result.value);
         break;
       case STATUS[2]:
+        /** 2.3 If/when x is rejected, reject promise with the same reason. **/
         reject.call(promise2, result.reason);
         break;
     }
     return;
   }
-  if(isThenAble(result)){
+  /** 3.Otherwise, if x is an object or function, **/
+  if((result !== null && result !== undefined && Object.getPrototypeOf(result) === null) || result instanceof Object || result instanceof Function){
     let then;
     try{
+      /** 3.1 Let then be x.then **/
       then = result.then;
     }
     catch (e) {
+      /** 3.2 If retrieving the property x.then results in a thrown exception e, reject promise with e as the reason. **/
       reject.call(promise2, e);
       return;
     }
-    let triggered = false;
-    try{
-      then.call(result,
-        function resolvePromise(y) {
-          if(triggered) return;
-          triggered = true;
-          _resolveX(y, promise2);
-        },
-        function rejectPromise(r) {
-          if(triggered) return;
-          triggered = true;
-          reject.call(promise2, r);
-        }
-      )
+    if(typeof then === 'function') {
+      //这里需要注意，Object.create(Function.prototype)生成的对象，
+      //obj instanceof Function会判断为true，但是实际并不是可执行函数
+      //而typeof obj 返回值是object可以区分开，所以用typeof判断
+      /** 3.3 If then is a function, call it with x as this, first argument resolvePromise, and second argument rejectPromise, **/
+      let triggered = false;
+      try {
+        then.call(result,
+          function resolvePromise(y) {
+            if (triggered) return;
+            _resolveX(y, promise2);
+            triggered = true;
+          },
+          function rejectPromise(r) {
+            if (triggered) return;
+            reject.call(promise2, r);
+            triggered = true;
+          }
+        )
+      }
+      catch (e) {
+        !triggered && (reject.call(promise2, e));
+      }
     }
-    catch (e) {
-      triggered && (reject.call(promise2, e));
+    else{
+      /** 3.4 If then is not a function, fulfill promise with x. **/
+      resolve.call(promise2, result);
     }
     return;
   }
+  /** 4. If x is not an object or function, fulfill promise with x. **/
   resolve.call(promise2, result);
 }
 
