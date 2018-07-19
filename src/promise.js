@@ -1,4 +1,3 @@
-const {isThenAble} = require('./tool');
 const STATUS = require('./status');
 
 /**
@@ -10,8 +9,10 @@ function resolve(value){
   this.status = STATUS[1];
   this.value = value;
 
-  if(this.nextPromise instanceof Promise && this.nextPromise.onFulfilled[0] instanceof Function){
-    this.nextPromise.onFulfilled[0](this.value);
+  if(this.nextPromises.length>0){
+    this.nextPromises.forEach(v=>{
+      v.onFulfilled[0] instanceof Function && v.onFulfilled[0](this.value);
+    });
   }
 }
 function reject(reason){
@@ -19,8 +20,10 @@ function reject(reason){
   this.status = STATUS[2];
   this.reason = reason;
 
-  if(this.nextPromise instanceof Promise && this.nextPromise.onRejected[0] instanceof Function){
-    this.nextPromise.onRejected[0](this.reason);
+  if(this.nextPromises.length>0){
+    this.nextPromises.forEach(v=>{
+      v.onRejected[0] instanceof Function && v.onRejected[0](this.reason);
+    });
   }
 }
 /**
@@ -39,37 +42,43 @@ function reject(reason){
 function onFulfillRegister(onFulfill, promise2){
   return function (value) {
     /** @Param value 上一个promise成功执行后，传递给下个promise2的value**/
-    if(!(onFulfill instanceof Function)){
-      resolve.call(promise2, value);
-      return;
-    }
-    let result;
-    try {
-      result = onFulfill.call(undefined, value);
-    }
-    catch (e) {
-      reject.call(promise2, e);
-      return;
-    }
-    _resolveX(result,promise2);
+    setTimeout(()=>{
+      if(!(onFulfill instanceof Function)){
+        resolve.call(promise2, value);
+        return;
+      }
+      let result;
+
+      try {
+        result = onFulfill.call(undefined, value);
+      }
+      catch (e) {
+        reject.call(promise2, e);
+        return;
+      }
+      _resolveX(result,promise2);
+    },0);
   }
 }
 function onRejectRegister(onReject, promise2){
   return function (reason) {
     /** @Param reason 上一个promise成功失败后，传递给下个promise2的reason**/
-    if(!(onReject instanceof Function)){
-      reject.call(promise2, reason);
-      return;
-    }
-    let result;
-    try {
-      result = onReject.call(undefined, reason);
-    }
-    catch (e) {
-      reject.call(promise2, e);
-      return;
-    }
-    _resolveX(result,promise2);
+    setTimeout(()=>{
+      if(!(onReject instanceof Function)){
+        reject.call(promise2, reason);
+        return;
+      }
+      let result;
+
+      try {
+        result = onReject.call(undefined, reason);
+      }
+      catch (e) {
+        reject.call(promise2, e);
+        return;
+      }
+      _resolveX(result,promise2);
+    },0);
   }
 }
 
@@ -79,53 +88,72 @@ function onRejectRegister(onReject, promise2){
  * @params promise2
  * **/
 function _resolveX(result, promise2){
+  /** 1.If promise and x refer to the same object, reject promise with a TypeError as the reason. **/
   if(result === promise2){
-    reject.call(promise2, new Error(' TypeError'));
+    reject.call(promise2, new TypeError('Chaining cycle detected for promise'));
     return;
   }
+  /** 2.If x is a promise, adopt its state **/
   if(result instanceof Promise){
     switch (result.status){
       case STATUS[0]:
-        result.then(resolve.bind(promise2, value), reject.bind(promise2, reason));
+        /** 2.1 If x is pending, promise must remain pending until x is fulfilled or rejected. **/
+        result.then(resolve.bind(promise2), reject.bind(promise2));
         break;
       case STATUS[1]:
+        /** 2.2 If/when x is fulfilled, fulfill promise with the same value. **/
         resolve.call(promise2, result.value);
         break;
       case STATUS[2]:
+        /** 2.3 If/when x is rejected, reject promise with the same reason. **/
         reject.call(promise2, result.reason);
         break;
     }
     return;
   }
-  let then;
-  try{
-    then = result.then;
-  }
-  catch (e) {
-    reject.call(promise2, e);
-    return;
-  }
-  if(isThenAble(result)){
-    let triggered = false;
+  /** 3.Otherwise, if x is an object or function, **/
+  if((result !== null && result !== undefined && Object.getPrototypeOf(result) === null) || result instanceof Object || result instanceof Function){
+    let then;
     try{
-      then.call(result,
-        function resolvePromise(y) {
-          if(triggered) return;
-          triggered = true;
-          _resolveX(y, promise2);
-        },
-        function rejectPromise(r) {
-          if(triggered) return;
-          triggered = true;
-          reject.call(promise2, r);
-        }
-      )
+      /** 3.1 Let then be x.then **/
+      then = result.then;
     }
     catch (e) {
-      triggered && (reject.call(promise2, e));
+      /** 3.2 If retrieving the property x.then results in a thrown exception e, reject promise with e as the reason. **/
+      reject.call(promise2, e);
+      return;
+    }
+    if(typeof then === 'function') {
+      //这里需要注意，Object.create(Function.prototype)生成的对象，
+      //obj instanceof Function会判断为true，但是实际并不是可执行函数
+      //而typeof obj 返回值是object可以区分开，所以用typeof判断
+      /** 3.3 If then is a function, call it with x as this, first argument resolvePromise, and second argument rejectPromise, **/
+      let triggered = false;
+      try {
+        then.call(result,
+          function resolvePromise(y) {
+            if (triggered) return;
+            _resolveX(y, promise2);
+            triggered = true;
+          },
+          function rejectPromise(r) {
+            if (triggered) return;
+            reject.call(promise2, r);
+            triggered = true;
+          }
+        )
+      }
+      catch (e) {
+        !triggered && (reject.call(promise2, e));
+      }
+    }
+    else{
+      /** 3.4 If then is not a function, fulfill promise with x. **/
+      resolve.call(promise2, result);
     }
     return;
   }
+  /** 4. If x is not an object or function, fulfill promise with x. **/
   resolve.call(promise2, result);
 }
 
@@ -139,7 +167,7 @@ function Promise(fn) {
   this.value = undefined;
   this.reason = undefined;
 
-  this.nextPromise = undefined;
+  this.nextPromises = [];
   this.onFulfilled = [];
   this.onRejected = [];
 
@@ -162,7 +190,7 @@ Promise.prototype.then = function(onFulfilled, onRejected){
   /**
    * @link http://www.ituring.com.cn/article/66566
    * **/
-  this.nextPromise = promise2;
+  this.nextPromises.push(promise2);
   //如果上一个promise已经结束，then生成的promise需要直接去触发注册好的回调
   if(this.status === STATUS[1]){
     promise2.onFulfilled[0](this.value);
@@ -184,4 +212,7 @@ require('./returnPromise');
 require('./catch');
 //实现finally方法
 require('./finally');
-
+//实现Promise.race方法
+require('./race');
+//实现Promise.all方法
+require('./all');
